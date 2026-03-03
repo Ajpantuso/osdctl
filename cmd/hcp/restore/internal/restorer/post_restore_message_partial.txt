@@ -1,0 +1,4 @@
+=== Partial Restore Complete ===
+Post-restore notes:
+- Monitor the HostedCluster conditions and pod health
+- Backplane access may be delayed while the cluster reconciles

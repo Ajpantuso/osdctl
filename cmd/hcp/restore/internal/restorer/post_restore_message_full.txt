@@ -1,0 +1,5 @@
+=== Restore Complete ===
+Post-restore notes:
+- Etcd pods may need restart annotation: hypershift.openshift.io/restart-date
+- Backplane access may be delayed while the cluster reconciles
+- Monitor the HostedCluster conditions and pod health

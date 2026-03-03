@@ -1,0 +1,5 @@
+  # Restore using the most recent backup (restore type is auto-diagnosed)
+  osdctl hcp restore --cluster-id <id> --reason <JIRA-ticket>
+
+  # Restore using a specific backup
+  osdctl hcp restore --cluster-id <id> --reason <JIRA-ticket> --backup-name <name>

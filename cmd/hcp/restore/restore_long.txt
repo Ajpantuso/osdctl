@@ -1,0 +1,14 @@
+Automates the ROSA HCP disaster restore procedures.
+
+The restore type (full or partial) is automatically diagnosed by inspecting the
+management cluster state:
+
+  full          Diagnosed when the HCP namespace is missing or Terminating,
+                the HostedCluster CR is missing or being deleted, or etcd pods
+                are CrashLooping. Sets ManifestWork updateStrategy to CreateOnly,
+                creates a Velero restore from backup, waits for completion, then
+                restores original ManifestWork strategies.
+
+  partial       Diagnosed when the HostedCluster exists and the control plane
+                is functional. Creates a Velero restore from backup without
+                modifying ManifestWorks.
