@@ -283,6 +283,26 @@ func TestRecommender_MakeRecommendations(t *testing.T) {
 			shouldContain:           []string{"default ingress", "Route 53"},
 		},
 		{
+			name: "default ingress failures produce one recommendation",
+			results: []dns.VerifyResult{
+				{Name: "apps.rosa.test.example.com", Status: dns.VerifyResultStatusFail},
+				{Name: "_acme-challenge.apps.rosa.test.example.com", Status: dns.VerifyResultStatusFail},
+			},
+			clusterID:               "test-cluster",
+			expectedRecommendations: 1,
+			shouldContain:           []string{"One or more default ingress FQDNs failed to resolve.", "OCM creates these records during provisioning", "_acme-challenge.apps.rosa.<domain-prefix>.<base-domain> CNAME record"},
+		},
+		{
+			name: "unique failures produce one recommendation",
+			results: []dns.VerifyResult{
+				{Name: "test-cluster.rosa.prefix.example.com", Status: dns.VerifyResultStatusFail},
+				{Name: "_acme-challenge.test-cluster.rosa.prefix.example.com", Status: dns.VerifyResultStatusFail},
+			},
+			clusterID:               "test-cluster",
+			expectedRecommendations: 1,
+			shouldContain:           []string{"One or more unique FQDNs failed to resolve.", "Verify that both CNAME records exist", "they are required"},
+		},
+		{
 			name: "API/OAuth failure",
 			results: []dns.VerifyResult{
 				{

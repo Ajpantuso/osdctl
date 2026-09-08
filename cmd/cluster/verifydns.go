@@ -285,45 +285,37 @@ func (r *recommender) MakeRecommendations(results []dns.VerifyResult, opts ...dn
 	var cfg dns.MakeRecommendationsConfig
 	cfg.Option(opts...)
 
-	var recommendations []string
+	var consoleFailed, defaultIngressFailed, uniqueFailed, apiOrOAuthFailed bool
 	for _, res := range results {
 		if res.Status != dns.VerifyResultStatusFail {
 			continue
 		}
 
 		if strings.HasPrefix(res.Name, "console") {
-			recommendations = append(recommendations, strings.Join([]string{
-				"If the console FQDN is not resolving then there is likely an issue with",
-				"CIO on the HCP cluster. Check if the A record <*.apps.rosa.<cluster-name>.<base-domain>",
-				"is defined in the Route 53 Public Hosted Zone in the customer AWS account.",
-				"If not check the health of CIO in the customer cluster.",
-			}, " "))
+			consoleFailed = true
 		} else if strings.HasPrefix(res.Name, "apps.rosa") || strings.HasPrefix(res.Name, "_acme-challenge.apps.rosa") {
-			recommendations = append(recommendations, strings.Join([]string{
-				"If the default ingress FQDNs are not resolving then there is likely an issue with",
-				"the Route 53 configuration in the customer AWS account. These records are created",
-				"once during provisioning by OCM and are not reconciled afterwards. Check the Route 53",
-				"public hosted zone in the customer AWS account to ensure these records exist.",
-				"The CNAME record <_acme-challenge.apps.rosa.<cluster-name>.<base-domain> in particular",
-				"must exist for ingress certificate issuance and renewal to succeed.",
-			}, " "))
-		} else if strings.HasPrefix(res.Name, cfg.Cluster.ID()) || strings.HasPrefix(res.Name, "_acme-challenge."+cfg.Cluster.ID()) {
-			recommendations = append(recommendations, strings.Join([]string{
-				"If the unique FQDNs are not resolving then there is likely an issue with",
-				"the Route 53 configuration in the customer AWS account. These records are created",
-				"once during provisioning by OCM and are not reconciled afterwards. Check the Route 53",
-				"public hosted zone in the customer AWS account to ensure these records exist.",
-				"The both CNAME records must exist for ingress certificate issuance and renewal to succeed.",
-			}, " "))
+			defaultIngressFailed = true
+		} else if cfg.Cluster != nil && (strings.HasPrefix(res.Name, cfg.Cluster.ID()) || strings.HasPrefix(res.Name, "_acme-challenge."+cfg.Cluster.ID())) {
+			uniqueFailed = true
 		} else if strings.HasPrefix(res.Name, "api") || strings.HasPrefix(res.Name, "oauth") {
-			recommendations = append(recommendations, strings.Join([]string{
-				"If the API or OAuth FQDNs are not resolving then there is likely an issue with",
-				"the external-dns operator on the parent Management Cluster of this HCP cluster.",
-				"Check the external-dns operator in the HyperShift namespace to ensure it has valid",
-				"AWS credentials and is running.",
-			}, " "))
+			apiOrOAuthFailed = true
 		}
 	}
+
+	var recommendations []string
+	if consoleFailed {
+		recommendations = append(recommendations, "The console FQDN failed to resolve. This likely indicates an issue with CIO on the HCP cluster. Verify that the *.apps.rosa.<domain-prefix>.<base-domain> A record exists in the customer AWS account's Route 53 public hosted zone. If it does not, check CIO health in the customer cluster.")
+	}
+	if defaultIngressFailed {
+		recommendations = append(recommendations, "One or more default ingress FQDNs failed to resolve. This likely indicates an issue with the Route 53 configuration in the customer AWS account. OCM creates these records during provisioning but does not reconcile them afterwards. Verify that the records exist in the Route 53 public hosted zone. In particular, the _acme-challenge.apps.rosa.<domain-prefix>.<base-domain> CNAME record is required for ingress certificate issuance and renewal.")
+	}
+	if uniqueFailed {
+		recommendations = append(recommendations, "One or more unique FQDNs failed to resolve. This likely indicates an issue with the Route 53 configuration in the customer AWS account. OCM creates these records during provisioning but does not reconcile them afterwards. Verify that both CNAME records exist in the Route 53 public hosted zone; they are required for ingress certificate issuance and renewal.")
+	}
+	if apiOrOAuthFailed {
+		recommendations = append(recommendations, "One or more API or OAuth FQDNs failed to resolve. This likely indicates an issue with the external-dns operator on the parent management cluster. Verify that the external-dns operator in the HyperShift namespace has valid AWS credentials and is running.")
+	}
+
 	return recommendations
 }
 
