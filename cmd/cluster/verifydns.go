@@ -181,40 +181,40 @@ func (v *verifyDNSOptions) buildTestCases(cluster *cmv1.Cluster) map[string]dnst
 	tests["console"] = dnstestCase{
 		name:       cluster.Console().URL(),
 		recordType: "A",
-		description: "Test Console A record: console-openshift-console.apps.rosa.<cluster-name>.<base-domain>." +
+		description: "Test Console A record: console-openshift-console.apps.rosa.<domain-prefix>.<base-domain>." +
 			"This verifies the presence of the A record for the wildcard domain " +
-			"*.apps.rosa.<cluster-name>.<base-domain>",
+			"*.apps.rosa.<domain-prefix>.<base-domain>",
 	}
 
-	name := cluster.Name()
+	domainPrefix := cluster.DomainPrefix()
 	id := cluster.ID()
 	domain := cluster.DNS().BaseDomain()
 
-	clusterSubDomain := fmt.Sprintf("%s.%s", name, domain)
-	actualChallengeRecord := fmt.Sprintf("_acme-challenge.%s.%s", name, domain)
+	clusterSubDomain := fmt.Sprintf("%s.%s", domainPrefix, domain)
+	actualChallengeRecord := fmt.Sprintf("_acme-challenge.%s.%s", domainPrefix, domain)
 
-	defaultIngressFQDN := fmt.Sprintf("apps.rosa.%s.%s", name, domain)
+	defaultIngressFQDN := fmt.Sprintf("apps.rosa.%s.%s", domainPrefix, domain)
 	tests["default_ingress"] = dnstestCase{
 		name:           defaultIngressFQDN,
 		recordType:     dns.RecordTypeCNAME,
-		description:    "Test CNAME: apps.rosa.<cluster-name>.<base-domain> -> <cluster-name>.<base-domain>",
+		description:    "Test CNAME: apps.rosa.<domain-prefix>.<base-domain> -> <domain-prefix>.<base-domain>",
 		expectedTarget: clusterSubDomain,
 	}
 
-	// 3. Test CNAME: _acme-challenge.apps.rosa.<cluster-name>.<base-domain> -> _acme-challenge.<cluster-name>.<base-domain>
-	defaultIngressChallengePointer := fmt.Sprintf("_acme-challenge.apps.rosa.%s.%s", name, domain)
+	// 3. Test CNAME: _acme-challenge.apps.rosa.<domain-prefix>.<base-domain> -> _acme-challenge.<domain-prefix>.<base-domain>
+	defaultIngressChallengePointer := fmt.Sprintf("_acme-challenge.apps.rosa.%s.%s", domainPrefix, domain)
 	tests["default_ingress_challenge"] = dnstestCase{
 		name:           defaultIngressChallengePointer,
 		recordType:     dns.RecordTypeCNAME,
-		description:    "Test CNAME: _acme-challenge.apps.rosa.<cluster-name>.<base-domain> -> _acme-challenge.<cluster-name>.<base-domain>",
+		description:    "Test CNAME: _acme-challenge.apps.rosa.<domain-prefix>.<base-domain> -> _acme-challenge.<domain-prefix>.<base-domain>",
 		expectedTarget: actualChallengeRecord,
 	}
 
-	uniqueFQDN := fmt.Sprintf("%s.rosa.%s.%s", id, name, domain)
+	uniqueFQDN := fmt.Sprintf("%s.rosa.%s.%s", id, domainPrefix, domain)
 	uniqueTest := dnstestCase{
 		name:           uniqueFQDN,
 		recordType:     dns.RecordTypeCNAME,
-		description:    "Test CNAME: <cluster-id>.rosa.<cluster-name>.<base-domain> -> <cluster-name>.<base-domain>",
+		description:    "Test CNAME: <cluster-id>.rosa.<domain-prefix>.<base-domain> -> <domain-prefix>.<base-domain>",
 		expectedTarget: clusterSubDomain,
 	}
 
@@ -224,11 +224,11 @@ func (v *verifyDNSOptions) buildTestCases(cluster *cmv1.Cluster) map[string]dnst
 	}
 	tests["unique"] = uniqueTest
 
-	uniqueChallengePointer := fmt.Sprintf("_acme-challenge.%s.rosa.%s.%s", id, name, domain)
+	uniqueChallengePointer := fmt.Sprintf("_acme-challenge.%s.rosa.%s.%s", id, domainPrefix, domain)
 	uniqueChallengeTest := dnstestCase{
 		name:           uniqueChallengePointer,
 		recordType:     dns.RecordTypeCNAME,
-		description:    "Test CNAME: _acme-challenge.<cluster-id>.rosa.<cluster-name>.<base-domain> -> _acme-challenge.<cluster-name>.<base-domain>",
+		description:    "Test CNAME: _acme-challenge.<cluster-id>.rosa.<domain-prefix>.<base-domain> -> _acme-challenge.<domain-prefix>.<base-domain>",
 		expectedTarget: actualChallengeRecord,
 	}
 	if shouldSkipUnique {
@@ -236,26 +236,26 @@ func (v *verifyDNSOptions) buildTestCases(cluster *cmv1.Cluster) map[string]dnst
 	}
 	tests["unique_challenge"] = uniqueChallengeTest
 
-	apiFQDN := fmt.Sprintf("api.%s.%s", name, domain)
+	apiFQDN := fmt.Sprintf("api.%s.%s", domainPrefix, domain)
 	apiFQDNTest := dnstestCase{
 		name: apiFQDN,
 	}
 
-	oauthFQDN := fmt.Sprintf("oauth.%s.%s", name, domain)
+	oauthFQDN := fmt.Sprintf("oauth.%s.%s", domainPrefix, domain)
 	oauthFQDNTest := dnstestCase{
 		name: oauthFQDN,
 	}
 
 	if cluster.AWS().PrivateLink() {
 		apiFQDNTest.recordType = dns.RecordTypeCNAME
-		apiFQDNTest.description = "Test CNAME: api.<cluster-name>.<base-domain>"
+		apiFQDNTest.description = "Test CNAME: api.<domain-prefix>.<base-domain>"
 		oauthFQDNTest.recordType = dns.RecordTypeCNAME
-		oauthFQDNTest.description = "Test CNAME: oauth.<cluster-name>.<base-domain>"
+		oauthFQDNTest.description = "Test CNAME: oauth.<domain-prefix>.<base-domain>"
 	} else {
 		oauthFQDNTest.recordType = dns.RecordTypeA
-		oauthFQDNTest.description = "Test A record: oauth.<cluster-name>.<base-domain>"
+		oauthFQDNTest.description = "Test A record: oauth.<domain-prefix>.<base-domain>"
 		apiFQDNTest.recordType = dns.RecordTypeA
-		apiFQDNTest.description = "Test A record: api.<cluster-name>.<base-domain>"
+		apiFQDNTest.description = "Test A record: api.<domain-prefix>.<base-domain>"
 	}
 	tests["api"] = apiFQDNTest
 	tests["oauth"] = oauthFQDNTest
